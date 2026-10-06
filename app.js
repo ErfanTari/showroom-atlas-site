@@ -44,8 +44,13 @@
     }
     if (window.ATLAS_LOCK) {
       // locked build (site/protect.mjs): data files are AES-GCM encrypted; wait for the login, then decrypt
-      return unlocked.then(k => fetch(json + '.enc').then(r => { if (!r.ok) throw new Error(json + ': HTTP ' + r.status); return r.arrayBuffer(); })
-        .then(buf => decrypt(k, buf))).then(v => (S['_' + key] = v));
+      // a static host can answer 5xx for a moment after a deploy: retry twice
+      const get = (n) => fetch(json + '.enc').then(r => {
+        if (r.status >= 500 && n > 0) return new Promise(res => setTimeout(res, 800)).then(() => get(n - 1));
+        if (!r.ok) throw new Error(json + ': HTTP ' + r.status);
+        return r.arrayBuffer();
+      });
+      return unlocked.then(k => get(2).then(buf => decrypt(k, buf))).then(v => (S['_' + key] = v));
     }
     return fetch(json).then(r => { if (!r.ok) throw new Error(json + ': HTTP ' + r.status); return r.json(); })
       .then(v => (S['_' + key] = v));
