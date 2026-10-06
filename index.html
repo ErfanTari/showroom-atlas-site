@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ceramic Showroom Atlas</title>
+<meta name="description" content="Where Anatolia Tile + Stone should be shown: markets, showroom districts, showrooms, brands and contacts in 8 countries.">
+<link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
+<link rel="preload" href="https://tiles.openfreemap.org/planet" as="fetch" crossorigin>
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="map" aria-label="Globe of the atlas countries"></div>
+
+<header class="bar">
+  <a class="title" href="#/">Ceramic Showroom Atlas</a>
+  <nav class="crumbs" id="crumbs" aria-label="Breadcrumb"></nav>
+  <label class="toggle" title="Dealer listings (mostly from brands' dealer locators) not yet confirmed open by a second source">
+    <input type="checkbox" id="showDealers"> Show dealers
+  </label>
+  <label class="toggle" title="Grade C and D rows are unverified and drawn hollow">
+    <input type="checkbox" id="showCD"> Show C/D
+  </label>
+</header>
+
+<aside class="panel" id="panel" aria-live="polite"></aside>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+<noscript><p class="noscript">The atlas needs JavaScript.</p></noscript>
+
+<script src="vendor/maplibre-gl.js"></script>
+<script src="vendor/world.js"></script>
+<script>window.ATLAS_LOCK={"salt":"ScGFU9UX7N0GLBtD9uMEWw==","iter":250000,"check":"cxqb8NqwMELur6xITaifuBYHwu9g4KA9LENlHGRS0nc="};</script>
+<script src="app.js"></script>
+</body>
+</html>
