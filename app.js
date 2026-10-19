@@ -24,8 +24,8 @@
   const nf0 = new Intl.NumberFormat('en');
 
   // ---------- state ----------
-  const S = { world: null, countries: {}, geo: {}, route: {}, showCD: false, showDealers: true, hoverIso: null, limit: 120 };
-  try { S.showCD = localStorage.getItem('atlas.showCD') === '1'; S.showDealers = localStorage.getItem('atlas.showDealers') !== '0'; } catch (e) { /* storage may be blocked */ }
+  const S = { world: null, countries: {}, geo: {}, route: {}, showCD: false, showDealers: false, hoverIso: null, limit: 120 };
+  try { S.showCD = localStorage.getItem('atlas.showCD') === '1'; S.showDealers = localStorage.getItem('atlas.showDealers') === '1'; } catch (e) { /* storage may be blocked */ }
   const $ = s => document.querySelector(s);
   const panel = $('#panel'), tip = $('#tip'), crumbs = $('#crumbs');
 
@@ -69,24 +69,33 @@
       { name: 'AES-GCM', length: 256 }, true, ['decrypt']);
   }
   async function tryKey(k) { await decrypt(k, b64(window.ATLAS_LOCK.check).buffer); return k; }
+  function signedIn(k) {
+    document.body.classList.remove('is-locked');
+    const login = $('#atlasLogin'); if (login) login.remove();
+    const out = $('#signOut');
+    out.hidden = false;
+    out.onclick = () => { try { sessionStorage.removeItem('atlas.key'); } catch (e) { /* storage may be blocked */ } location.reload(); };
+    unlock(k);
+  }
   if (window.ATLAS_LOCK) (async () => {
+    document.body.classList.add('is-locked');
     try { // same tab, already signed in
       const raw = sessionStorage.getItem('atlas.key');
-      if (raw) { unlock(await tryKey(await crypto.subtle.importKey('raw', b64(raw), 'AES-GCM', true, ['decrypt']))); return; }
+      if (raw) { signedIn(await tryKey(await crypto.subtle.importKey('raw', b64(raw), 'AES-GCM', true, ['decrypt']))); return; }
     } catch (e) { /* fall through to the form */ }
-    const f = document.createElement('form'); f.className = 'login';
-    f.innerHTML = `<h1>Ceramic Showroom Atlas</h1><label>Username <input name="u" autocomplete="username" required></label>
-      <label>Password <input name="p" type="password" autocomplete="current-password" required></label>
-      <button class="btn" type="submit">Sign in</button><p class="muted" role="alert"></p>`;
-    document.body.appendChild(f); f.u.focus();
+    const f = $('#atlasLogin'); f.hidden = false; f.elements.u.focus();
+    f.querySelector('button').disabled = false; f.querySelector('button').textContent = 'Sign in';
     f.addEventListener('submit', async ev => {
-      ev.preventDefault(); const msg = f.querySelector('[role=alert]'); msg.textContent = 'Checking…';
+      ev.preventDefault(); const msg = f.querySelector('[role=alert]'), button = f.querySelector('button');
+      button.disabled = true; button.textContent = 'Signing in…'; msg.textContent = '';
       try {
-        const k = await tryKey(await deriveKey(f.u.value, f.p.value));
+        const k = await tryKey(await deriveKey(f.elements.u.value, f.elements.p.value));
         try { sessionStorage.setItem('atlas.key', btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.exportKey('raw', k))))); } catch (e) { /* ignore */ }
-        f.remove(); unlock(k);
-      } catch (e) { msg.textContent = 'Wrong username or password.'; }
+        f.remove(); signedIn(k);
+      } catch (e) { msg.textContent = 'Username or password not recognised. Please try again.'; f.elements.p.focus(); }
+      finally { button.disabled = false; button.textContent = 'Sign in'; }
     });
+    f.removeAttribute('onsubmit');
   })();
   const loadWorld = () => load('world', 'data/world.json', 'data/world.js');
   // a country = core file (<iso>.json) + places parts listed in core.parts (export.py keeps each under 250 KB);
@@ -106,7 +115,7 @@
           d.showrooms.forEach(x => { const v = m[normKey(x.name) + '|' + normKey(x.address)]; if (v) S.media[x.id] = { img: v[0], page: v[1], scope: v[2] }; });
           return d;
         });
-      })));
+      }))).catch(err => { delete merged[iso]; throw err; });
   const loadGeo = iso => load('g_' + iso, `geo/${iso}.geojson`, `data/${iso}.geo.js`)
     .catch(() => ({ type: 'FeatureCollection', features: [] }));
 
@@ -602,8 +611,9 @@
       else if (r.city) renderCity(r, d, geo);
       else renderCountry(r, d, geo);
     } catch (err) {
-      panel.innerHTML = `<h1>Data not available</h1><p class="sub">${esc(err.message)}</p>` +
-        `<p class="muted">From a local folder, run <code>make export</code> then <code>python3 site/pack.py</code>; or serve the site with <code>make serve</code>.</p>`;
+      if (token !== renderToken) return;
+      panel.innerHTML = '<h1>Data not available</h1><p class="sub">The atlas could not load this page. Check your connection and try again.</p><button class="btn" id="retryData" type="button">Try again</button>';
+      $('#retryData').onclick = render;
     }
   }
 
@@ -625,7 +635,8 @@
           <span class="right">${m ? `${fmtMetric(m).replace(/<small>/, ' <small>')} <span class="muted">${m.year}</span>` : '<span class="muted">—</span>'}</span></div>
           <div class="meta">${c.status === 'intel_only' ? 'Intel only, not scored · ' : ''}imports${m && m.derived && /mirror/i.test(m.derived) ? ' (mirror)' : ''}</div></a></li>`;
       }).join('')}</ul>
-      <p class="muted" style="margin-top:14px">Hover a country to preview, click to open. Esc goes up a level.</p>`;
+      <p class="muted" style="margin-top:14px">Hover a country to preview, click to open. Esc goes up a level.</p>
+      <p class="note">Research dates and sources appear on each record. Unconfirmed dealer listings are hidden until you turn on “Show dealers”. District rankings are provisional.</p>`;
     panel.querySelectorAll('[data-iso]').forEach(li => {
       li.addEventListener('mouseenter', () => setHover(li.dataset.iso));
       li.addEventListener('mouseleave', () => setHover(null));
@@ -636,7 +647,7 @@
     const tab = r.q.tab || 'market';
     const t = (id, label) => `<a href="${href({ iso: r.iso }, id === 'market' ? {} : { tab: id })}" ${tab === id ? 'aria-current="page"' : ''}>${label}</a>`;
     return `<h1>${esc(d.country.name)}</h1>
-      <p class="sub">${d.country.status === 'intel_only' ? 'Intel only: mapped and verified, excluded from scores and recommendations.' : `${showroomsOf(d).length} showrooms · ${contactsOf(d).length} contacts · ${d.districts.length} districts`}</p>
+      <p class="sub">${d.country.status === 'intel_only' ? 'Intel only: mapped for research, excluded from scores and recommendations.' : `${showroomsOf(d).length} showrooms · ${contactsOf(d).length} contacts · ${d.districts.filter(x => visible(x.grade)).length} districts`}</p>
       <nav class="tabs">${t('market', 'Market')}${t('showrooms', 'Showrooms')}${t('brands', 'Brands')}${t('contacts', 'Contacts')}</nav>`;
   }
 
@@ -689,7 +700,7 @@
     const cities = d.cities || [];
     if (cities.length) {
       html += `<h2>Cities and districts</h2><ul class="list">` + cities.map(c => {
-        const ds = d.districts.filter(x => x.city === c.id);
+        const ds = d.districts.filter(x => x.city === c.id && visible(x.grade));
         return `<li><a class="row-link" href="${href({ iso: r.iso, city: c.slug })}"><div class="row-title"><b>${esc(c.name)}</b>
           <span class="right">${ds.length} district${ds.length === 1 ? '' : 's'}</span></div>
           <div class="meta">${ds.slice().sort((a, b) => score(b) - score(a)).map(x => esc(x.name)).join(' · ')}</div></a></li>`;
@@ -796,7 +807,7 @@
     const phone = s.phone, web = s.website || co.website; // company phone is shown under Contacts, not on each branch
     return `<li class="${visible(s.grade) && (s.grade === 'A' || s.grade === 'B') ? '' : 'hollow'}${String(r.q.sel) === String(s.id) ? ' hi' : ''}" data-sid="${s.id}" ${s.lat != null ? 'data-ll="' + s.lon + ',' + s.lat + '"' : ''}>
       <div class="row-title ${s.lat != null ? 'clickable' : ''}"><span class="pin ${s.lat != null ? s.kind : 'none'}" title="${esc(KIND[s.kind] || '')}${s.lat == null ? ', not on the map yet' : ''}"></span>
-        <b>${esc(s.name)}</b><span class="right">${s.status === 'open' ? 'open' : ''}${badge(s.grade, s.source, d.sources)}</span></div>
+        <b>${esc(s.name)}</b><span class="right">${s.status === 'open' ? 'open' : s.status === 'closed' ? 'closed' : 'unverified'}${badge(s.grade, s.source, d.sources)}</span></div>
       <div class="meta">${esc(s.address)}</div>
       <div class="meta">${[KIND[s.kind], co.name && co.name !== s.name ? esc(co.name) + (co.role ? ' (' + (ROLE[co.role] || co.role).toLowerCase() + ')' : '') : '', tel(phone), ext(web), s.hours ? esc(s.hours) : ''].filter(Boolean).join(' · ')}</div>
       ${brands.length ? `<div class="chips">${brands.map(b => `<a class="chip" href="${href({ iso: r.iso }, { tab: 'showrooms', brand: idOf(d, b) })}" ${b.segment ? `style="--seg:var(--seg-${b.segment})"` : ''}>${esc(b.name)}</a>`).join('')}</div>` : ''}
@@ -865,7 +876,7 @@
     const city = d.cities.find(c => c.slug === r.city);
     if (!city) { go({ iso: r.iso }); return; }
     stopSpin();
-    const ds = d.districts.filter(x => x.city === city.id).sort((a, b) => score(b) - score(a));
+    const ds = d.districts.filter(x => x.city === city.id && visible(x.grade)).sort((a, b) => score(b) - score(a));
     const nameRe = new RegExp('(^|[^\\p{L}])' + city.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').split(/\s*\/\s*/).join('|') + '([^\\p{L}]|$)', 'iu');
     const rooms = showroomsOf(d).filter(s => nameRe.test(s.address) || ds.some(x => x.id === s.district));
     const cityPts = rooms.filter(s => s.lat != null).map(s => [s.lon, s.lat]);
@@ -875,10 +886,10 @@
     }
     lastLevel = 'city:' + city.id;
     panel.innerHTML = `<h1>${esc(city.name)}</h1>
-      <p class="sub">${city.lat == null && !cityPts.length ? 'No coordinates for this city yet, so the map stays on the country. ' : ''}${ds.length} candidate district${ds.length === 1 ? '' : 's'}, ranked by fit score.</p>
-      <ul class="list">${ds.map(x => `<li><a class="row-link" href="${href({ iso: r.iso, city: city.slug, district: x.slug })}">
-        <div class="row-title"><b>${esc(x.name)}</b><span class="right">${d.country.status === 'intel_only' ? 'not scored' : 'score ' + score(x)}${badge(x.grade, x.source, d.sources)}</span></div>
-        <div class="meta">${[x.channel, x.status, x.peer_count + ' peer brands', x.anchor ? 'anchor: ' + esc(x.anchor) : ''].filter(Boolean).join(' · ')}</div></a></li>`).join('') || '<li class="muted">No districts yet.</li>'}</ul>
+      <p class="sub">${city.lat == null && !cityPts.length ? 'No coordinates for this city yet, so the map stays on the country. ' : ''}${ds.length} candidate district${ds.length === 1 ? '' : 's'}${d.country.status === 'intel_only' ? ', for market intelligence.' : ', ranked by provisional fit score.'}</p>
+      <ul class="list">${ds.map(x => `<li>
+        <div class="row-title"><a class="row-link" href="${href({ iso: r.iso, city: city.slug, district: x.slug })}"><b>${esc(x.name)}</b></a><span class="right">${d.country.status === 'intel_only' ? 'not scored' : 'score ' + score(x)}${badge(x.grade, x.source, d.sources)}</span></div>
+        <div class="meta">${[x.channel, x.status, x.peer_count + ' peer brands', x.anchor ? 'anchor: ' + esc(x.anchor) : ''].filter(Boolean).join(' · ')}</div></li>`).join('') || '<li class="muted">No districts yet.</li>'}</ul>
       ${showroomList(d, r, rooms, `<h2>Showrooms in ${esc(city.name)} <span class="muted">(address or district)</span></h2>`)}`;
     wire(d, r);
     const ids = new Set(filterShowrooms(d, r, rooms).map(s => s.id));
@@ -890,6 +901,10 @@
     crumbsFor(r, d); setSel(r.iso);
     const x = d.districts.find(v => v.slug === r.district);
     if (!x) { go({ iso: r.iso, city: r.city }); return; }
+    if (!visible(x.grade)) {
+      panel.innerHTML = `<h1>${esc(x.name)}</h1><p class="note">This district is grade ${esc(x.grade)}. Turn on “Show C/D” to review its unverified evidence.</p>`;
+      setPoints(null); return;
+    }
     if (lastLevel !== 'district:' + x.id) {
       const city = d.cities.find(c => c.id === x.city);
       if (x.centroid) fly({ center: [x.centroid.lon != null ? x.centroid.lon : x.centroid[0], x.centroid.lat != null ? x.centroid.lat : x.centroid[1]], zoom: 14.5, pitch: 0, duration: 500 });
@@ -904,11 +919,19 @@
       ${d.country.status === 'intel_only' ? '<p class="note">Intel only: this district is not scored.</p>' : `<div class="metrics">
         ${[['Peer density', sc.peer_density, 40], ['Channel fit', sc.channel_fit, 20], ['Openness', sc.openness, 20], ['Access', sc.access, 10], ['Evidence', sc.evidence, 10]]
           .map(([k, v, m]) => `<div class="k">${k}</div><div class="v">${v == null ? '—' : v}<small>/ ${m}</small></div>`).join('')}
-        <div class="k"><b>Fit score</b></div><div class="v"><b>${score(x)}</b><small>/ 100</small></div></div>`}
+        <div class="k"><b>Provisional fit score</b></div><div class="v"><b>${score(x)}</b><small>/ 100</small></div></div>
+        ${x.score_meta ? `<p class="note">${esc(x.score_meta.note)}${x.score_meta.importer_distance_km != null ? ' Nearest mapped importer/distributor: ' + esc(x.score_meta.importer.name) + ', ' + nf1.format(x.score_meta.importer_distance_km) + ' km.' + badge(x.score_meta.importer.grade, x.score_meta.importer.source, d.sources) : ' Importer proximity is not known for this district.'}</p>` : ''}`}
       ${x.centroid ? '' : '<p class="muted">Polygon not drawn yet (district sweep pending).</p>'}
-      ${rooms.length ? showroomList(d, r, rooms, '<h2>Showrooms</h2>') : '<h2>Showrooms</h2><p class="muted">No showroom is assigned to this district yet; the district sweep (WP-C) places them.</p>'}`;
+      ${d.country.status !== 'intel_only' ? shortlist(d, r, rooms) : ''}
+      ${rooms.length ? showroomList(d, r, rooms, '<h2>Showrooms</h2>') : '<h2>Showrooms</h2><p class="muted">No showroom is assigned to this district yet.</p>'}`;
     wire(d, r);
     setPoints(geo, f => f.properties.layer === 'district' ? f.properties.id === x.id : rooms.some(s => s.id === f.properties.id));
+  }
+
+  function shortlist(d, r, rooms) {
+    const rows = rooms.filter(s => s.kind === 'multi_brand' && s.status === 'open' && ['A', 'B'].includes(s.grade) && (s.phone || s.email) && Date.parse(s.last_verified_at) >= Date.now() - 90 * 86400000 && Date.parse(s.last_verified_at) <= Date.now())
+      .sort((a, b) => (b.brands || []).length - (a.brands || []).length || a.name.localeCompare(b.name)).slice(0, 3);
+    return '<h2>Multi-brand shortlist</h2>' + (rows.length ? '<p class="muted">Open A/B locations with published contacts, ordered by the number of recorded brands. Confirm availability before outreach.</p><ul class="list">' + rows.map(s => showroomRow(d, s, r)).join('') + '</ul>' : '<p class="muted">No open multi-brand showroom with a published contact is recorded in this district yet.</p>');
   }
 
   // ---------- panel wiring ----------

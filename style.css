@@ -71,16 +71,17 @@ button, input, select { font: inherit; color: inherit; }
 /* top bar */
 .bar {
   position: fixed; top: 0; left: 0; right: 400px; z-index: 2;
-  display: flex; align-items: center; gap: 16px; padding: 14px 20px; pointer-events: none;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 14px 20px; pointer-events: none;
 }
 .bar > * { pointer-events: auto; background: color-mix(in srgb, var(--bg) 86%, transparent); border-radius: 4px; padding: 2px 6px; margin: -2px -6px; }
-.title { font-size: 15px; font-weight: 600; text-decoration: none; }
-.crumbs { display: flex; gap: 6px; color: var(--ink-2); flex-wrap: wrap; }
+.title { font-size: 15px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.crumbs { display: flex; gap: 6px; color: var(--ink-2); flex-wrap: wrap; order: 1; flex-basis: 100%; }
 .crumbs a { text-decoration: none; }
 .crumbs a:hover { color: var(--accent-text); }
 .crumbs span::before { content: "/"; margin-right: 6px; color: var(--ink-3); }
 .toggle + .toggle { margin-left: 14px; }
-.toggle { margin-left: auto; display: flex; gap: 6px; align-items: center; color: var(--ink-2); cursor: pointer; }
+.toggle { margin-left: auto; display: flex; gap: 6px; align-items: center; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+#signOut { white-space: nowrap; }
 .toggle input { accent-color: var(--accent); }
 
 /* side panel */
@@ -179,8 +180,10 @@ li.hi { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shad
   #map { right: 0; bottom: 45vh; }
   .bar { right: 0; padding: 10px 14px; gap: 10px; background: var(--bg); border-bottom: 1px solid var(--line); }
   .bar > * { background: none; padding: 0; margin: 0; white-space: nowrap; }
-  .title { font-size: 13px; }
-  .crumbs { flex-wrap: nowrap; min-width: 0; overflow: hidden; }
+  .title { font-size: 13px; flex: 1 0 calc(100% - 90px); }
+  #signOut { order: 0; margin-left: auto; }
+  .toggle, .toggle + .toggle { order: 1; margin-left: 0; }
+  .crumbs { order: 2; flex-wrap: wrap; min-width: 0; white-space: normal; }
   .panel { top: auto; left: 0; width: auto; height: 45vh; border-left: 0; border-top: 1px solid var(--line); padding: 14px 16px 30px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -190,9 +193,16 @@ li.hi { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shad
 .tip-cap { display: block; margin-top: 3px; font-size: 11px; color: var(--ink-2); }
 
 /* login (locked builds only) */
-.login { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center;
-  background: var(--bg); padding: 16px; }
-.login h1 { font-size: 20px; margin: 0 0 8px; }
-.login label { display: flex; flex-direction: column; gap: 4px; width: min(300px, 100%); color: var(--ink-2); }
-.login input { font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: inherit; }
-.login .btn { width: min(300px, 100%); }
+[hidden] { display: none !important; }
+.is-locked .bar, .is-locked .panel, .is-locked .tip { visibility: hidden; }
+.login { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
+  background: var(--water); padding: 24px; overflow-y: auto; }
+.login-card { width: min(360px, 100%); padding: 32px; background: var(--bg); border: 1px solid var(--border); border-top: 3px solid var(--accent); }
+.login-brand { margin: 0 0 24px; color: var(--accent-text); font-size: 13px; font-weight: 650; }
+.login h1 { font-size: 22px; margin: 0 0 10px; line-height: 1.2; }
+.login .sub { margin-bottom: 26px; }
+.login label { display: block; margin: 16px 0 6px; color: var(--ink-2); }
+.login input { width: 100%; font-size: 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 3px; background: var(--bg); color: var(--ink); }
+.login .btn { width: 100%; padding: 11px; margin-top: 24px; background: var(--accent-text); color: var(--bg); border-color: var(--accent-text); font-weight: 600; }
+.login .btn:disabled { opacity: .65; cursor: wait; }
+.login-message { min-height: 20px; margin: 14px 0 0; color: var(--ink-2); }
