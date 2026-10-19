@@ -4,95 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ceramic Showroom Atlas</title>
-<meta name="description" content="Anatolia Tile + Stone market intelligence: ceramic tile markets, showroom districts, brands and business contacts.">
+<meta name="description" content="Where Anatolia Tile + Stone should be shown: markets, showroom districts, showrooms, brands and contacts in 8 countries.">
 <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
 <link rel="preload" href="https://tiles.openfreemap.org/planet" as="fetch" crossorigin>
-<link rel="preload" as="style" href="vendor/maplibre-gl.css" onload="this.onload=null;this.rel='stylesheet'">
-<link rel="preload" as="style" href="style.css" onload="this.onload=null;this.rel='stylesheet'">
-<style>/* Ceramic Showroom Atlas — BRIEF §8: one accent, one grey scale, one sans at 13/15/22 px, no shadows or gradients. */
-:root {
-  --accent: #1B8A5A;
-  --accent-text: #157A4E; /* #1B8A5A is 4.35:1 on white; text in the accent uses this 5.1:1 shade */
-  --bg: #ffffff;
-  --water: #f3f5f4;
-  --land: #dfe3e1;
-  --border: #c9cfcc;
-  /* basemap (vector tiles): the same grey scale, no hue */
-  --cover: #d6dbd8;     /* wood, grass, parks */
-  --urban: #d9dedb;     /* built-up land */
-  --building: #cdd3d0;
-  --road: #ffffff;      /* street fill at city zoom */
-  --road-lo: #c3cac6;   /* roads at country zoom */
-  --road-hi: #aeb6b2;   /* motorways at country zoom */
-  --road-case: #c3cac6;
-  --rail: #9aa39e;
-  --halo: #eef1ef;      /* label halo */
-  --ink: #1c2320;
-  --ink-2: #56605b;
-  --ink-3: #8a938e;
-  --line: #e4e8e6;
-  --seg-sintered_slab: #6b5bd2;
-  --seg-italian_premium: #c0582b;
-  --seg-spanish_design: #b08a1e;
-  --seg-turkish: #c2335a;
-  --seg-na_mass: #2d7fc1;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --accent: #4CC38A;
-    --accent-text: #4CC38A;
-    --bg: #111513;
-    --water: #161b19;
-    --land: #2a312e;
-    --border: #3b4440;
-    --cover: #252c29;
-    --urban: #2f3633;
-    --building: #353d39;
-    --road: #454e4a;
-    --road-lo: #3b4440;
-    --road-hi: #4a5450;
-    --road-case: #1f2523;
-    --rail: #56605b;
-    --halo: #1f2523;
-    --ink: #e7ecea;
-    --ink-2: #aab3ae;
-    --ink-3: #7c8580;
-    --line: #262d2a;
-    --attrib-filter: invert(1);
-    color-scheme: dark;
-  }
-}
-*{box-sizing:border-box}body{margin:0;color:var(--ink);font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}.sub{color:var(--ink-2);margin:0 0 14px}/* login (locked builds only) */
-[hidden] { display: none !important; }
-.is-locked .bar, .is-locked .panel, .is-locked .tip { visibility: hidden; }
-.login { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
-  background: var(--water); padding: 24px; overflow-y: auto; }
-.login-card { width: min(360px, 100%); padding: 32px; background: var(--bg); border: 1px solid var(--border); border-top: 3px solid var(--accent); }
-.login-brand { margin: 0 0 24px; color: var(--accent-text); font-size: 13px; font-weight: 650; }
-.login h1 { font-size: 22px; margin: 0 0 10px; line-height: 1.2; }
-.login .sub { margin-bottom: 26px; }
-.login label { display: block; margin: 16px 0 6px; color: var(--ink-2); }
-.login input { width: 100%; font-size: 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 3px; background: var(--bg); color: var(--ink); }
-.login .btn { width: 100%; padding: 11px; margin-top: 24px; background: var(--accent-text); color: var(--bg); border-color: var(--accent-text); font-weight: 600; }
-.login .btn:disabled { opacity: .65; cursor: wait; }
-.login-message { min-height: 20px; margin: 14px 0 0; color: var(--ink-2); }
-</style>
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<link rel="stylesheet" href="style.css">
 </head>
-<body class="is-locked">
-<form class="login" id="atlasLogin" aria-labelledby="loginTitle" onsubmit="return false">
-  <div class="login-card">
-    <p class="login-brand">Anatolia Tile + Stone</p>
-    <h1 id="loginTitle">Ceramic Showroom Atlas</h1>
-    <p class="sub">Explore tile markets, showroom districts and the people behind them.</p>
-    <label for="atlasUser">Username</label>
-    <input id="atlasUser" name="u" autocomplete="username" autocapitalize="none" spellcheck="false" required>
-    <label for="atlasPass">Password</label>
-    <input id="atlasPass" name="p" type="password" autocomplete="current-password" required>
-    <button class="btn" type="submit" disabled>Loading…</button>
-    <p class="login-message" role="alert" aria-live="polite"></p>
-  </div>
-</form>
+<body>
 <div id="map" aria-label="Globe of the atlas countries"></div>
 
 <header class="bar">
@@ -104,7 +22,6 @@
   <label class="toggle" title="Grade C and D rows are unverified and drawn hollow">
     <input type="checkbox" id="showCD"> Show C/D
   </label>
-  <button class="btn" id="signOut" type="button" hidden>Sign out</button>
 </header>
 
 <aside class="panel" id="panel" aria-live="polite"></aside>
@@ -113,7 +30,7 @@
 
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/world.js"></script>
-<script>window.ATLAS_LOCK={"salt":"Rvdl1H2T4XC/IFEiUwJ46w==","iter":250000,"check":"zlVrz8FCCGdZiabKs007rerXi5LCwzYo8ZmISx3GyiY="};</script>
+<script>window.ATLAS_LOCK={"salt":"xhHsIZ70wxF2b0We51hSug==","iter":250000,"check":"cX8ezhPc7ZeEroR+rW1PsJSpGgMXy55aQWVWDl+lStg="};</script>
 <script src="app.js"></script>
 </body>
 </html>
